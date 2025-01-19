@@ -1,9 +1,9 @@
 import json
 import os
-from langchain.vectorstores import FAISS
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings
 from langchain.schema import Document
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 
 # Configurar la clave de API de OpenAI
 os.environ['OPENAI_API_KEY'] = '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'
@@ -86,14 +86,14 @@ class ConversationalChatbot:
         
         # Usar modelo LLM
         llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-        response = llm.predict(prompt)
+        response = llm.invoke(prompt)
         
         # Actualizar historial y guardar
         self.history.append(f"Usuario: {query}")
         self.history.append(f"Chatbot: {response}")
         self.save_history()
         
-        return response
+        return response.content
 
 # Ejemplo de uso del Chatbot
 chatbot_instance = ConversationalChatbot()
