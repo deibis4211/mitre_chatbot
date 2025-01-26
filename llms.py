@@ -1,9 +1,11 @@
 import json
 import os
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings
-from langchain.schema import Document
-from langchain_openai import ChatOpenAI
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain.schema import Document, HumanMessage, AIMessage, SystemMessage
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationChain
+from langchain.prompts import PromptTemplate
 
 # Configurar la clave de API de OpenAI
 os.environ['OPENAI_API_KEY'] = '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'
@@ -34,69 +36,42 @@ for technique in techniques:
 vectorstore = FAISS.from_documents(documents, embeddings)
 
 # Definir el prompt específico
-prompt_template = """
+prompt_template = PromptTemplate(
+    input_variables=["history", "input"],
+    template="""
 Eres un asistente experto en ciberseguridad utilizando la base de datos MITRE ATT&CK.
 
 Historial de la conversación:
 {history}
 
-Contexto relevante:
-{context}
-
 Pregunta del usuario:
-{query}
+{input}
 
 Respuesta:
 """
+)
 
-# Función para generar el contexto
-def generate_context(query):
-    results = vectorstore.similarity_search(query, k=5)
-    context = ""
-    for result in results:
-        context += f"Descripción: {result.page_content}\n"
-        context += f"Detección: {result.metadata['detection']}\n"
-        context += f"Mitigaciones: {result.metadata['mitigation_methods']}\n\n"
-    return context
+# Crear el modelo de chat
+chat_model = ChatOpenAI(model="gpt-4o-mini")
 
-# Implementar el Chatbot con memoria
-class ConversationalChatbot:
-    def __init__(self, history_file="history.json"):
-        self.history_file = history_file
-        self.history = self.load_history()
+# Crear la memoria de la conversación
+memory = ConversationBufferMemory(memory_key="history")
 
-    def load_history(self):
-        try:
-            with open(self.history_file, "r") as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            print("Error al cargar el historial, iniciando con un historial vacío.")
-            return []  # Si no existe o hay error, se inicializa vacío
+# Crear la cadena de conversación
+conversation = ConversationChain(
+    llm=chat_model,
+    memory=memory,
+    prompt=prompt_template
+)
 
-    def save_history(self):
-        # Guardar historial en archivo
-        with open(self.history_file, "w") as f:
-            json.dump(self.history, f)
+# Bucle principal para leer la entrada del usuario y generar respuestas
+while True:
+    user_input = input("Usuario: ")
+    if user_input.lower() in [":salir", ":exit", ":terminar"]:
+        break
 
-    def chatbot(self, query):
-        # Generar contexto desde un vector store
-        context = generate_context(query)
-        full_history = "\n".join(self.history)  # Concatenar historial
-        prompt = prompt_template.format(history=full_history, context=context, query=query)
-        
-        # Usar modelo LLM
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-        response = llm.invoke(prompt)
-        
-        # Actualizar historial y guardar
-        self.history.append(f"Usuario: {query}")
-        self.history.append(f"Chatbot: {response}")
-        self.save_history()
-        
-        return response.content
+    # Generar la respuesta del modelo
+    ai_response = conversation.predict(input=user_input)
 
-# Ejemplo de uso del Chatbot
-chatbot_instance = ConversationalChatbot()
-query = "An administrator noticed that a user account, which belongs to an employee on leave, was used to access sensitive files at odd hours"
-response = chatbot_instance.chatbot(query)
-print(response)
+    # Mostrar la respuesta del modelo
+    print(f"\nChatBot: {ai_response}\n")
