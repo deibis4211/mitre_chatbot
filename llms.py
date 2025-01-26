@@ -1,13 +1,16 @@
 import json
 import os
+import sys
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import START, MessagesState, StateGraph
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain.schema import Document, HumanMessage, AIMessage, SystemMessage
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationChain
-from langchain.prompts import PromptTemplate
+from langchain.schema import Document
+from dotenv import load_dotenv
 
 # Configurar la clave de API de OpenAI
+load_dotenv()
 os.environ['OPENAI_API_KEY'] = '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'
 
 # Leer el fichero JSON
@@ -35,43 +38,42 @@ for technique in techniques:
 # Crear el vector store
 vectorstore = FAISS.from_documents(documents, embeddings)
 
-# Definir el prompt específico
-prompt_template = PromptTemplate(
-    input_variables=["history", "input"],
-    template="""
-Eres un asistente experto en ciberseguridad utilizando la base de datos MITRE ATT&CK.
-
-Historial de la conversación:
-{history}
-
-Pregunta del usuario:
-{input}
-
-Respuesta:
-"""
-)
-
 # Crear el modelo de chat
-chat_model = ChatOpenAI(model="gpt-4o-mini")
+llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"])
 
-# Crear la memoria de la conversación
-memory = ConversationBufferMemory(memory_key="history")
+# Definir un nuevo grafo
+workflow = StateGraph(state_schema=MessagesState)
 
-# Crear la cadena de conversación
-conversation = ConversationChain(
-    llm=chat_model,
-    memory=memory,
-    prompt=prompt_template
-)
+# Función que llama al modelo
+def call_model(state: MessagesState):
+    response = llm.invoke(state["messages"])
+    # Actualizar el historial de mensajes con la respuesta
+    return {"messages": response}
 
-# Bucle principal para leer la entrada del usuario y generar respuestas
+# Añadir nodo al grafo
+workflow.add_edge(START, "model")
+workflow.add_node("model", call_model)
+
+# Añadir memoria
+memory = MemorySaver()
+app = workflow.compile(checkpointer=memory)
+
+# Contexto para la conversación actual (thread_id=1111)
+config = {"configurable": {"thread_id": "1111"}}
+
+# System prompt
+texto = ("Eres un asistente experto en ciberseguridad utilizando la base de datos MITRE ATT&CK.")
+prompt_base = SystemMessage(texto)
+# Carga del system prompt inicial en la memoria
+output = app.invoke({"messages": [prompt_base]}, config)
+
+print("CHATBOT con historia.\nLo sé todo sobre ciberseguridad, ¡pregúntame!.\nFinalizar sesión con los comandos :salir, :exit o :terminar\n")
 while True:
-    user_input = input("Usuario: ")
-    if user_input.lower() in [":salir", ":exit", ":terminar"]:
-        break
+    query = input("\n>> ")
+    if query.lower() in [":salir", ":exit", ":terminar"]:
+        print("Gracias por hablar conmigo!!")
+        sys.exit(0)
 
-    # Generar la respuesta del modelo
-    ai_response = conversation.predict(input=user_input)
-
-    # Mostrar la respuesta del modelo
-    print(f"\nChatBot: {ai_response}\n")
+    input_messages = [HumanMessage(query)]
+    output = app.invoke({"messages": input_messages}, config)
+    output["messages"][-1].pretty_print()
