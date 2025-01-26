@@ -44,7 +44,16 @@ llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"])
 # Definir un nuevo grafo
 workflow = StateGraph(state_schema=MessagesState)
 
-# Función que llama al modelo
+# Función para generar el contexto
+def generate_context(query):
+    results = vectorstore.similarity_search(query, k=5)
+    context = ""
+    for result in results:
+        context += f"Descripción: {result.page_content}\n"
+        context += f"Detección: {result.metadata['detection']}\n"
+        context += f"Mitigaciones: {result.metadata['mitigation_methods']}\n\n"
+    return context
+
 def call_model(state: MessagesState):
     response = llm.invoke(state["messages"])
     # Actualizar el historial de mensajes con la respuesta
@@ -74,6 +83,7 @@ while True:
         print("Gracias por hablar conmigo!!")
         sys.exit(0)
 
-    input_messages = [HumanMessage(query)]
+    # Crear el mensaje de entrada con el contexto adicional
+    input_messages = [HumanMessage(f"{query}\n\nAtaques similares:\n{generate_context(query)}")]
     output = app.invoke({"messages": input_messages}, config)
     output["messages"][-1].pretty_print()
