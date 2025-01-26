@@ -4,9 +4,9 @@ import sys
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
-from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.schema import Document
+from langchain_chroma import Chroma
 from dotenv import load_dotenv
 
 # Configurar la clave de API de OpenAI
@@ -35,8 +35,15 @@ for technique in techniques:
     }
     documents.append(Document(page_content=page_content, metadata=metadata))
 
-# Crear el vector store
-vectorstore = FAISS.from_documents(documents, embeddings)
+# Crear el vector store usando Chroma
+vectorstore = Chroma(
+    collection_name="mitre_techniques",
+    embedding_function=embeddings
+)
+
+# Agregar los documentos al vector store
+ids = [doc.metadata["id"] for doc in documents]
+vectorstore.add_documents(documents=documents, ids=ids)
 
 # Crear el modelo de chat
 llm = ChatOpenAI(model="gpt-4o-mini", api_key=os.environ["OPENAI_API_KEY"])
@@ -71,7 +78,7 @@ app = workflow.compile(checkpointer=memory)
 config = {"configurable": {"thread_id": "1111"}}
 
 # System prompt
-texto = ("Eres un asistente experto en ciberseguridad utilizando la base de datos MITRE ATT&CK. Si el usuario no pregunta direcatamente sobre un ataque, no respondas con información sobre un ataque. ")
+texto = ("Eres un asistente experto en ciberseguridad utilizando la base de datos MITRE ATT&CK. Si el usuario no pregunta direcatamente sobre un ataque, no respondas con información sobre un ataque. Usa el contexto de otros ataques proporcionados para comentar la deteccion y mitigacion del ataque que se te pregunte")
 prompt_base = SystemMessage(texto)
 # Carga del system prompt inicial en la memoria
 output = app.invoke({"messages": [prompt_base]}, config)
