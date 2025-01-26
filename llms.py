@@ -71,7 +71,7 @@ app = workflow.compile(checkpointer=memory)
 config = {"configurable": {"thread_id": "1111"}}
 
 # System prompt
-texto = ("Eres un asistente experto en ciberseguridad utilizando la base de datos MITRE ATT&CK.")
+texto = ("Eres un asistente experto en ciberseguridad utilizando la base de datos MITRE ATT&CK. Si el usuario no pregunta direcatamente sobre un ataque, no respondas con información sobre un ataque. ")
 prompt_base = SystemMessage(texto)
 # Carga del system prompt inicial en la memoria
 output = app.invoke({"messages": [prompt_base]}, config)
