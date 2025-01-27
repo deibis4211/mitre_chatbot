@@ -7,10 +7,9 @@ from langgraph.graph import START, MessagesState, StateGraph
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.schema import Document
 from langchain_chroma import Chroma
-from dotenv import load_dotenv
+
 
 # Configurar la clave de API de OpenAI
-load_dotenv()
 os.environ['OPENAI_API_KEY'] = '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'
 
 # Leer el fichero JSON
@@ -78,7 +77,7 @@ app = workflow.compile(checkpointer=memory)
 config = {"configurable": {"thread_id": "1111"}}
 
 # System prompt
-texto = ("Eres un asistente experto en ciberseguridad utilizando la base de datos MITRE ATT&CK. Si el usuario no pregunta direcatamente sobre un ataque, no respondas con información sobre un ataque. Usa el contexto de otros ataques proporcionados para comentar la deteccion y mitigacion del ataque que se te pregunte")
+texto = ("Eres un asistente experto en ciberseguridad utilizando la base de datos MITRE ATT&CK. Si el usuario no pregunta direcatamente sobre un ataque, no respondas con información sobre un ataque.")
 prompt_base = SystemMessage(texto)
 # Carga del system prompt inicial en la memoria
 output = app.invoke({"messages": [prompt_base]}, config)
