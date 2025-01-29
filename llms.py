@@ -34,13 +34,13 @@ for technique in techniques:
     }
     documents.append(Document(page_content=page_content, metadata=metadata))
 
-# Crear el vector store usando Chroma
+# Crear el vectorstore usando Chroma
 vectorstore = Chroma(
     collection_name="mitre_techniques",
     embedding_function=embeddings
 )
 
-# Agregar los documentos al vector store
+# Agregar los documentos al vectorstore
 ids = [doc.metadata["id"] for doc in documents]
 vectorstore.add_documents(documents=documents, ids=ids)
 
@@ -62,10 +62,9 @@ def generate_context(query):
 
 def call_model(state: MessagesState):
     response = llm.invoke(state["messages"])
-    # Actualizar el historial de mensajes con la respuesta
     return {"messages": response}
 
-# Añadir nodo al grafo
+# Añadir nodo inicial
 workflow.add_edge(START, "model")
 workflow.add_node("model", call_model)
 
@@ -73,7 +72,7 @@ workflow.add_node("model", call_model)
 memory = MemorySaver()
 app = workflow.compile(checkpointer=memory)
 
-# Contexto para la conversación actual (thread_id=1111)
+# Contexto para la conversación actual
 config = {"configurable": {"thread_id": "1111"}}
 
 # System prompt
