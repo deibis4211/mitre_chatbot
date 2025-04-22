@@ -10,7 +10,7 @@ from langchain_chroma import Chroma
 
 
 # Configurar la clave de API de OpenAI
-os.environ['OPENAI_API_KEY'] = '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'
+os.environ['OPENAI_API_KEY'] = 'key'
 
 # Leer el fichero JSON
 with open("techniques_enterprise_attack.json", "r") as f:
